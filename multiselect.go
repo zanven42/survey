@@ -23,8 +23,8 @@ for them to select using the arrow keys and enter. Response type is a slice of s
 type MultiSelect struct {
 	core.Renderer
 	Message       string
-	Options       []string
-	Default       []string
+	Options       []SelectOption
+	Default       []SelectOption
 	Help          string
 	PageSize      int
 	VimMode       bool
@@ -43,7 +43,7 @@ type MultiSelectTemplateData struct {
 	Checked       map[string]bool
 	SelectedIndex int
 	ShowHelp      bool
-	PageEntries   []string
+	PageEntries   []SelectOption
 }
 
 var MultiSelectQuestionTemplate = `
@@ -88,12 +88,12 @@ func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, 
 		// if the user pressed down and there is room to move
 	} else if key == terminal.KeySpace {
 		if m.selectedIndex < len(options) {
-			if old, ok := m.checked[options[m.selectedIndex]]; !ok {
+			if old, ok := m.checked[options[m.selectedIndex].String()]; !ok {
 				// otherwise just invert the current value
-				m.checked[options[m.selectedIndex]] = true
+				m.checked[options[m.selectedIndex].String()] = true
 			} else {
 				// otherwise just invert the current value
-				m.checked[options[m.selectedIndex]] = !old
+				m.checked[options[m.selectedIndex].String()] = !old
 			}
 		}
 		// only show the help message if we have one to show
@@ -145,14 +145,14 @@ func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, 
 	return line, 0, true
 }
 
-func (m *MultiSelect) filterOptions() []string {
+func (m *MultiSelect) filterOptions() []SelectOption {
 	filter := strings.ToLower(m.filter)
 	if filter == "" {
 		return m.Options
 	}
-	answer := []string{}
+	answer := []SelectOption{}
 	for _, o := range m.Options {
-		if strings.Contains(strings.ToLower(o), filter) {
+		if strings.Contains(strings.ToLower(o.String()), filter) {
 			answer = append(answer, o)
 		}
 	}
@@ -169,7 +169,7 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 				// if the option correponds to the default
 				if opt == dflt {
 					// we found our initial value
-					m.checked[opt] = true
+					m.checked[opt.String()] = true
 					// stop looking
 					break
 				}
@@ -227,9 +227,9 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 	m.filter = ""
 	m.FilterMessage = ""
 
-	answers := []string{}
+	answers := []SelectOption{}
 	for _, option := range m.Options {
-		if val, ok := m.checked[option]; ok && val {
+		if val, ok := m.checked[option.String()]; ok && val {
 			answers = append(answers, option)
 		}
 	}

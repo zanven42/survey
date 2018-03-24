@@ -148,9 +148,9 @@ func Ask(qs []*Question, response interface{}) error {
 	return nil
 }
 
-// paginate returns a single page of choices given the page size, the total list of
+// paginateOptions returns a single page of choices given the page size, the total list of
 // possible choices, and the current selected index in the total list.
-func paginate(page int, choices []string, sel int) ([]string, int) {
+func paginate(page int, choices []SelectOption, sel int) ([]SelectOption, int) {
 	// the number of elements to show in a single page
 	var pageSize int
 	// if the select has a specific page size
@@ -195,4 +195,16 @@ func paginate(page int, choices []string, sel int) ([]string, int) {
 
 	// return the subset we care about and the index
 	return choices[start:end], cursor
+}
+
+type SelectOption interface {
+	String() string
+}
+
+type StringOption struct {
+	S string
+}
+
+func (opt StringOption) String() string {
+	return string(opt.S)
 }
