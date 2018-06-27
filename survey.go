@@ -19,6 +19,7 @@ var DefaultAskOptions = AskOptions{
 		Out: os.Stdout,
 		Err: os.Stderr,
 	},
+	Callback: nil,
 }
 
 // Validator is a function passed to a Question after a user has provided a response.
@@ -52,9 +53,12 @@ type Prompt interface {
 // AskOpt allows setting optional ask options.
 type AskOpt func(options *AskOptions) error
 
+type ConditionalCallback func(current *Question, ans interface{}, next *Question) bool
+
 // AskOptions provides additional options on ask.
 type AskOptions struct {
-	Stdio terminal.Stdio
+	Stdio    terminal.Stdio
+	Callback ConditionalCallback
 }
 
 // WithStdio specifies the standard input, output and error files survey
@@ -65,6 +69,12 @@ func WithStdio(in terminal.FileReader, out terminal.FileWriter, err io.Writer) A
 		options.Stdio.Out = out
 		options.Stdio.Err = err
 		return nil
+	}
+}
+
+func WithConditionalCheck(cb ConditionalCallback) AskOpt {
+	return func(options *AskOptions) error {
+		options.Callback = cb
 	}
 }
 
@@ -131,7 +141,8 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		// we can't go any further
 		return errors.New("cannot call Ask() with a nil reference to record the answers")
 	}
-
+	var prevQ *question
+	var prevA interface{}
 	// go over every question
 	for _, q := range qs {
 		// If Prompt implements controllable stdio, pass in specified stdio.
@@ -139,8 +150,18 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 			p.WithStdio(options.Stdio)
 		}
 
+		if prevQ != nil && options.Callback != nil {
+			if options.Callback(prevQ, prevA, q) == false {
+				prevQ = q
+				prevA = nil
+				continue
+			}
+		}
+		prevQ = q
+
 		// grab the user input and save it
 		ans, err := q.Prompt.Prompt()
+		prevA = ans
 		// if there was a problem
 		if err != nil {
 			return err
