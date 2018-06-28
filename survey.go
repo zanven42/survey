@@ -40,6 +40,7 @@ type Question struct {
 	Prompt    Prompt
 	Validate  Validator
 	Transform Transformer
+	Skip      bool
 }
 
 // Prompt is the primary interface for the objects that can take user input
@@ -75,6 +76,7 @@ func WithStdio(in terminal.FileReader, out terminal.FileWriter, err io.Writer) A
 func WithConditionalCheck(cb ConditionalCallback) AskOpt {
 	return func(options *AskOptions) error {
 		options.Callback = cb
+		return nil
 	}
 }
 
@@ -141,10 +143,13 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		// we can't go any further
 		return errors.New("cannot call Ask() with a nil reference to record the answers")
 	}
-	var prevQ *question
+	var prevQ *Question
 	var prevA interface{}
 	// go over every question
 	for _, q := range qs {
+		if q.Skip {
+			continue
+		}
 		// If Prompt implements controllable stdio, pass in specified stdio.
 		if p, ok := q.Prompt.(wantsStdio); ok {
 			p.WithStdio(options.Stdio)
