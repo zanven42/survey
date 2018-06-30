@@ -2,6 +2,7 @@ package survey
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 
@@ -36,11 +37,23 @@ type Transformer func(ans interface{}) (newAns interface{})
 
 // Question is the core data structure for a survey questionnaire.
 type Question struct {
-	Name      string
-	Prompt    Prompt
-	Validate  Validator
-	Transform Transformer
-	Skip      bool
+	Name         string
+	Prompt       Prompt
+	Validate     Validator
+	Transform    Transformer
+	SkipChildren bool
+	ParentName   string
+	parent       *Question
+}
+
+func (q Question) IsSkipped() bool {
+	if q.parent == nil {
+		return false
+	}
+	if q.parent.SkipChildren == true {
+		return true
+	}
+	return q.parent.IsSkipped()
 }
 
 // Prompt is the primary interface for the objects that can take user input
@@ -138,6 +151,21 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		}
 	}
 
+	for i, q := range qs {
+		if q.ParentName != "" {
+			for j, qc := range qs {
+				if i == j {
+					continue
+				}
+				if q.ParentName == qc.Name {
+					q.parent = qc
+					qs[i] = q
+					break
+				}
+			}
+			return fmt.Errorf("Failed to find parent: %s for question: %s", q.ParentName, q.Name)
+		}
+	}
 	// if we weren't passed a place to record the answers
 	if response == nil {
 		// we can't go any further
@@ -147,7 +175,7 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 	var prevA interface{}
 	// go over every question
 	for _, q := range qs {
-		if q.Skip {
+		if q.IsSkipped() {
 			continue
 		}
 		// If Prompt implements controllable stdio, pass in specified stdio.
