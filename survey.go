@@ -14,13 +14,11 @@ import (
 var PageSize = 7
 
 // DefaultAskOptions is the default options on ask, using the OS stdio.
-var DefaultAskOptions = AskOptions{
 	Stdio: terminal.Stdio{
 		In:  os.Stdin,
 		Out: os.Stdout,
 		Err: os.Stderr,
 	},
-	Callback: nil,
 }
 
 // Validator is a function passed to a Question after a user has provided a response.
@@ -44,14 +42,16 @@ type Question struct {
 	SkipChildren bool
 	ParentName   string
 	parent       *Question
+	Disables     []string
+	DisableValue interface{}
 }
 
 func (q Question) IsSkipped() bool {
+	if q.SkipChildren {
+		return true
+	}
 	if q.parent == nil {
 		return false
-	}
-	if q.parent.SkipChildren == true {
-		return true
 	}
 	return q.parent.IsSkipped()
 }
@@ -67,12 +67,9 @@ type Prompt interface {
 // AskOpt allows setting optional ask options.
 type AskOpt func(options *AskOptions) error
 
-type ConditionalCallback func(current *Question, ans interface{}, next *Question) bool
-
 // AskOptions provides additional options on ask.
 type AskOptions struct {
-	Stdio    terminal.Stdio
-	Callback ConditionalCallback
+	Stdio terminal.Stdio
 }
 
 // WithStdio specifies the standard input, output and error files survey
@@ -82,13 +79,6 @@ func WithStdio(in terminal.FileReader, out terminal.FileWriter, err io.Writer) A
 		options.Stdio.In = in
 		options.Stdio.Out = out
 		options.Stdio.Err = err
-		return nil
-	}
-}
-
-func WithConditionalCheck(cb ConditionalCallback) AskOpt {
-	return func(options *AskOptions) error {
-		options.Callback = cb
 		return nil
 	}
 }
@@ -171,8 +161,6 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		// we can't go any further
 		return errors.New("cannot call Ask() with a nil reference to record the answers")
 	}
-	var prevQ *Question
-	var prevA interface{}
 	// go over every question
 	for _, q := range qs {
 		if q.IsSkipped() {
@@ -183,18 +171,8 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 			p.WithStdio(options.Stdio)
 		}
 
-		if prevQ != nil && options.Callback != nil {
-			if options.Callback(prevQ, prevA, q) == false {
-				prevQ = q
-				prevA = nil
-				continue
-			}
-		}
-		prevQ = q
-
 		// grab the user input and save it
 		ans, err := q.Prompt.Prompt()
-		prevA = ans
 		// if there was a problem
 		if err != nil {
 			return err
@@ -242,6 +220,15 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		// if something went wrong
 		if err != nil {
 			return err
+		}
+		if len(q.Disables) > 0 && q.DisableValue == ans {
+			for _, qd := range qs {
+				for _, disable := range q.Disables {
+					if qd.Name == disable {
+						qd.SkipChildren = true
+					}
+				}
+			}
 		}
 
 	}
