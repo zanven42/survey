@@ -152,7 +152,9 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 					break
 				}
 			}
-			return fmt.Errorf("Failed to find parent: %s for question: %s", q.ParentName, q.Name)
+			if q.parent == nil {
+				return fmt.Errorf("Failed to find parent: %s for question: %s", q.ParentName, q.Name)
+			}
 		}
 	}
 	// if we weren't passed a place to record the answers
