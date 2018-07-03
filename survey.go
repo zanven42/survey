@@ -12,8 +12,7 @@ import (
 
 // PageSize is the default maximum number of items to show in select/multiselect prompts
 var PageSize = 7
-
-// DefaultAskOptions is the default options on ask, using the OS stdio.
+var DefaultAskOptions = AskOptions{
 	Stdio: terminal.Stdio{
 		In:  os.Stdin,
 		Out: os.Stdout,
@@ -221,9 +220,20 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		if err != nil {
 			return err
 		}
-		if len(q.Disables) > 0 && q.DisableValue == ans {
-			for _, qd := range qs {
-				for _, disable := range q.Disables {
+		var Disable bool
+		if strslice, ok := ans.([]string); ok {
+			for _, s := range strslice {
+				if q.DisableValue == s {
+					Disable = true
+				}
+			}
+		} else if q.DisableValue == ans {
+			Disable = true
+		}
+		if Disable {
+			q.SkipChildren = true
+			for _, disable := range q.Disables {
+				for _, qd := range qs {
 					if qd.Name == disable {
 						qd.SkipChildren = true
 					}
