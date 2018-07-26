@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 
 	"gopkg.in/AlecAivazis/survey.v1/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
@@ -225,12 +226,23 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		var Disable bool
 		if strslice, ok := ans.([]string); ok {
 			for _, s := range strslice {
+				if sdv, ok := q.DisableValue.(string); ok {
+					if match, _ := regexp.Match(sdv, []byte(s)); match {
+						Disable = true
+					}
+				}
 				if q.DisableValue == s {
 					Disable = true
 				}
 			}
 		} else if q.DisableValue == ans {
 			Disable = true
+		} else if strans, ok := ans.(string); ok {
+			if sdv, ok := q.DisableValue.(string); ok {
+				if match, _ := regexp.Match(sdv, []byte(strans)); match {
+					Disable = true
+				}
+			}
 		}
 		if Disable {
 			q.SkipChildren = true
@@ -242,7 +254,6 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 				}
 			}
 		}
-
 	}
 
 	// return the response
