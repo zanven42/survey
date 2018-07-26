@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
+
+	"github.com/dlclark/regexp2"
 
 	"gopkg.in/AlecAivazis/survey.v1/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
@@ -227,7 +228,8 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 		if strslice, ok := ans.([]string); ok {
 			for _, s := range strslice {
 				if sdv, ok := q.DisableValue.(string); ok {
-					if match, _ := regexp.Match(sdv, []byte(s)); match {
+
+					if match, _ := regexp2.MustCompile(sdv, 0).MatchString(s); match {
 						Disable = true
 					}
 				}
@@ -239,7 +241,7 @@ func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
 			Disable = true
 		} else if strans, ok := ans.(string); ok {
 			if sdv, ok := q.DisableValue.(string); ok {
-				if match, _ := regexp.Match(sdv, []byte(strans)); match {
+				if match, _ := regexp2.MustCompile(sdv, 0).MatchString(strans); match {
 					Disable = true
 				}
 			}
